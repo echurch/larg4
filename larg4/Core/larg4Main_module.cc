@@ -26,6 +26,10 @@
 #include "larg4/pluginActions/MCTruthEventAction_service.h" // combined actions.
 #include "larg4/pluginActions/ParticleListAction_service.h" // combined actions.
 
+#include "TGeoManager.h"
+#include "TObjArray.h"
+#include "TGeoVolume.h"
+
 // Services
 #include "art/Framework/Services/Optional/RandomNumberGenerator.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
@@ -41,6 +45,15 @@
 // Geant4 includes
 #include "Geant4/G4UImanager.hh"
 #include "Geant4/G4UIterminal.hh"
+#include "Geant4/G4LogicalVolume.hh"
+#include "Geant4/G4LogicalVolumeStore.hh"
+#include "Geant4/G4Material.hh"
+#include "Geant4/G4PhysicalVolumeStore.hh"
+#include "Geant4/G4VPhysicalVolume.hh"
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/AuxDetGeometry.h"
+#include <cctype> 
+
 // C++ includes
 #include <atomic>
 #include <map>
@@ -211,6 +224,7 @@ void larg4::larg4Main::beginRun(art::Run& r)
   runManager_->SetUserInitialization(
     new artg4tk::ArtG4DetectorConstruction{detectorHolder->worldPhysicalVolume()});
 
+
   // Get all of the actions and initialize them
   auto actionHolder = art::ServiceHandle<artg4tk::ActionHolderService>().get();
   actionHolder->initialize();
@@ -243,6 +257,128 @@ void larg4::larg4Main::beginRun(art::Run& r)
   mf::LogInfo("larg4Main") << "Finding path for " << g4MacroFile_ << "...\nSearch "
                            << (macroWasFound ? "successful " : "unsuccessful ") << "and path is: \n"
                            << macroLocation;
+
+  // EC chunk, 6-Nov-2025. Just to dump to screen lines about various det elements.
+  art::ServiceHandle<geo::Geometry const> geo;
+
+  // aux Vols first
+  art::ServiceHandle<geo::AuxDetGeometry > adg;
+  const auto& auxDetGeo = adg->GetProvider();
+  // Get all auxiliary detector geometry objects
+  std::cout << "larG4Main::beginJob(): num aux dets is " << auxDetGeo.NAuxDets() << std::endl;
+
+  //  for (G4LogicalVolumeStore::iterator i = lvs->begin(); i != lvs->end(); ++i) {
+  //     G4LogicalVolume* volume = (*i);
+  /*
+  auto vols = geo->WorldVolume()->GetGeoManager()->GetListOfVolumes();
+  for (int ii = 0; ii < vols->GetEntries(); ++ii) {
+    TGeoVolume* vol = static_cast<TGeoVolume*>(vols->At(ii));
+    const auto TheMaterial = vol->GetMedium()->GetMaterial();//volume->GetMaterial();
+    std::string matName = TheMaterial->GetName();
+    std::string volName = std::string(vol->GetName()); // volume->GetName();
+
+    if (volName=="volCryostat" && matName=="LAr")
+      {
+	std::cout << "Skipping " << volName << " and " << matName << " because it seems to take ~15min to subtract all the daughters and calculate its weight. Doing it once got 2.331 ktonnes." << std::endl;
+	continue;
+      }
+
+    double totalVolume = vol->GetShape()->Capacity();
+    for (Int_t ii = 0; ii < vol->GetNdaughters(); ii++) {
+      TGeoNode *daughterNode = vol->GetNode(ii);
+      TGeoVolume *daughterVolume = daughterNode->GetVolume();
+      totalVolume -= daughterVolume->GetShape()->Capacity();
+    }
+
+    
+    double density = TheMaterial->GetDensity();
+    std::string matLower;
+    std::string volLower;
+    matLower.resize(matName.size());
+    volLower.resize(volName.size());
+    std::transform(matName.begin(),matName.end(),matLower.begin(),::tolower);
+    std::transform(volName.begin(),volName.end(),volLower.begin(),::tolower);
+    double detectorMass(12.);
+    ////    detectorMass =  vol->GetMass()/CLHEP::kg;// volume->GetMass()/CLHEP::kg;
+    detectorMass =totalVolume*density*0.001; // kg from gm
+    if //(volLower.find("arapuca") != std::string::npos)	
+      (matLower.find("rock") != std::string::npos ||
+       matLower.find("crete") != std::string::npos ||
+       matLower.find("shield") != std::string::npos ||
+       matLower.find("grout") != std::string::npos ||
+       matLower.find("cryo") != std::string::npos ||
+       matLower.find("shot") != std::string::npos ||
+       matLower.find("dune") != std::string::npos ||
+       matLower.find("radio") != std::string::npos ||
+       matLower.find("beam") != std::string::npos ||
+       matLower.find("wood") != std::string::npos ||
+       volLower.find("rock") != std::string::npos ||
+       volLower.find("crete") != std::string::npos ||
+       volLower.find("shield") != std::string::npos ||
+       volLower.find("grout") != std::string::npos ||
+       volLower.find("cryo") != std::string::npos ||
+       volLower.find("shot") != std::string::npos ||
+       volLower.find("dune") != std::string::npos ||
+       volLower.find("radio") != std::string::npos ||
+       volLower.find("beam") != std::string::npos ||
+       volLower.find("belt") != std::string::npos ||
+       volLower.find("wood") != std::string::npos 
+	)
+      {
+	std::cout << "larG4main_module::beginRun(): LogVolume/Material discovered: " << volName <<"/"<< matName << " total mass [kq]: " << detectorMass << std::endl;
+      }
+    
+    if //(volLower.find("arapuca") != std::string::npos)	
+      (volLower.find("arap") == std::string::npos &&
+       volLower.find("wire") == std::string::npos &&
+       volLower.find("opdet") == std::string::npos 
+       )
+      {
+	std::cout << "larG4main_module::beginRun(): LogVolume/Material all: " << volName <<"/"<< matName << " total mass [kq]: " << detectorMass << std::endl;
+      }
+    
+  }
+  */
+
+  std::vector<std::string> encls{"volDetEnclosure","volCryostatEnc","volSupportEnc"}; // top Enclosures with daughters we care about
+  std::vector< std::vector<std::string>> dencls{{"radiorock","concret","shot"},{"cryo","shell","foam","wood","skin"},{"beam","belt","shield"}}; // daughters in those enclosures
+  std::map< std::pair<std::string, std::string> , double> volWeightkg; // should all be initialized to 0.
+
+  for (size_t ii=0; ii<encls.size(); ii++)
+    {      
+      const auto& encl = encls[ii];
+      TGeoVolume* vse = geo->WorldVolume()->GetGeoManager()->FindVolumeFast(encl.c_str());
+      // loop over daughters of vse
+      for (int jj = 0; jj < vse->GetNdaughters(); ++jj) {
+	TGeoNode *node = vse->GetNode(jj);
+	TGeoVolume *daughter = node->GetVolume();
+	std::string volName = daughter->GetName();
+	std::string volLower;
+	volLower.resize(volName.size());
+	std::transform(volName.begin(),volName.end(),volLower.begin(),::tolower);
+	for (const auto& dencl : dencls[ii])
+	  {
+	    if (volLower.find(dencl) != std::string::npos && (volLower.find("cryostat") == std::string::npos))
+	      {
+		double mass = daughter->Weight();
+		const auto spair = std::make_pair(encl,dencl);
+		volWeightkg[spair] += mass;
+		//		std::cout << "Daughter Volume: " << volName 
+		// << ", Mass contribution: " << mass << " kg" << std::endl; 
+	      }
+	  } // end possible daughters of interest for this encl
+      } // end daughters
+    } // end enclosure loop
+  // Printout map.
+  std::cout << "" << std::endl;
+  std::cout << "-------------------------------------------------------------------" << std::endl;
+  for (const auto& pair : volWeightkg) {    
+    std::cout << "Element: " << pair.first.first << ": " << pair.first.second << ", Weight [tonne]: " << pair.second/1000. << std::endl;
+  }
+  std::cout << "-------------------------------------------------------------------" << std::endl;
+  std::cout << "" << std::endl;
+
+
 
   // Execute the macro if we were able to find it
   if (macroWasFound) {
