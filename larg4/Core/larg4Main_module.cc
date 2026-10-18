@@ -341,8 +341,9 @@ void larg4::larg4Main::beginRun(art::Run& r)
   */
 
   std::vector<std::string> encls{"volDetEnclosure","volCryostatEnc","volSupportEnc"}; // top Enclosures with daughters we care about
-  std::vector< std::vector<std::string>> dencls{{"radiorock","concret","shot"},{"cryo","shell","foam","wood","skin"},{"beam","belt","shield"}}; // daughters in those enclosures
+  std::vector< std::vector<std::string>> dencls{{"radiorock","concrete","shot"},{"cryo","shell","foam","wood","skin"},{"beam","belt","shield"}}; // daughters in those enclosure
   std::map< std::pair<std::string, std::string> , double> volWeightkg; // should all be initialized to 0.
+  std::map< std::pair<std::string, std::string> , double> volDensgcm3; 
 
   for (size_t ii=0; ii<encls.size(); ii++)
     {      
@@ -363,7 +364,9 @@ void larg4::larg4Main::beginRun(art::Run& r)
 		double mass = daughter->Weight();
 		const auto spair = std::make_pair(encl,dencl);
 		volWeightkg[spair] += mass;
-		//		std::cout << "Daughter Volume: " << volName 
+		auto material = daughter->GetMaterial();
+		volDensgcm3[spair] = material->GetDensity();
+		//  std::cout << "Daughter Volume: " << volName;
 		// << ", Mass contribution: " << mass << " kg" << std::endl; 
 	      }
 	  } // end possible daughters of interest for this encl
@@ -372,8 +375,8 @@ void larg4::larg4Main::beginRun(art::Run& r)
   // Printout map.
   std::cout << "" << std::endl;
   std::cout << "-------------------------------------------------------------------" << std::endl;
-  for (const auto& pair : volWeightkg) {    
-    std::cout << "Element: " << pair.first.first << ": " << pair.first.second << ", Weight [tonne]: " << pair.second/1000. << std::endl;
+  for (const auto& [key,pair] : volWeightkg) {    
+    std::cout << "Element: " << key.first << ": " << key.second << ", Weight [tonne]: " << volWeightkg.at(key)/1000. << ". Density [g/cm3]: " << volDensgcm3.at(key) << std::endl;
   }
   std::cout << "-------------------------------------------------------------------" << std::endl;
   std::cout << "" << std::endl;

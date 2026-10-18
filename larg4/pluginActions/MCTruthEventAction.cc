@@ -100,6 +100,7 @@ void larg4::MCTruthEventActionService::generatePrimaries(G4Event* anEvent)
   for (size_t mcl = 0; mcl < mclSize; ++mcl) {
     mf::LogDebug("generatePrimaries")
       << "MCTruth Handle Number: " << (mcl + 1) << " of " << mclSize;
+
     art::Handle<std::vector<simb::MCTruth>> mclistHandle = mclistHandles[mcl];
     // Loop over all MCTruth handle entries for a given generator,
     // usually only one, but you never know
